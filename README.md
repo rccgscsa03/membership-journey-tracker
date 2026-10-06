@@ -2,7 +2,7 @@
 
 Staff-only tracker for RCCG Salvation Center San Antonio: each person's discipleship stage (Connect → Lead) and their follow-up, at **https://scsatracker.org**.
 
-- **Site:** static HTML/JS in `public/`, hosted on Netlify. No build step.
+- **Site:** static HTML/JS at the top level of the repo, hosted on Netlify. No build step.
 - **Data and sign-in:** Supabase (Postgres + email-link login).
 - **Access:** only emails on the Staff list can sign in. Pastor = everything, including pastor's notes, permanent delete and the Staff list. Leader = add and edit members and follow-up. Viewer = read only. Enforced by database row-level security, not just the page.
 
@@ -10,12 +10,15 @@ Staff-only tracker for RCCG Salvation Center San Antonio: each person's disciple
 
 | Path | What it is |
 | --- | --- |
-| `public/index.html` | Page layout and styles |
-| `public/app.js` | Page logic |
-| `public/config.js` | Supabase URL and anon key (public by design) |
-| `public/vendor/supabase.js` | Supabase browser library v2.117.2 |
-| `supabase/schema.sql` | Tables, access rules, staff-only sign-up guard, live updates |
-| `netlify.toml` | Publish folder and security headers |
+| `index.html` | Page layout and styles |
+| `app.js` | Page logic |
+| `config.js` | Supabase URL and publishable key (public by design) |
+| `supabase.js` | Supabase browser library v2.117.2 |
+| `schema.sql` | Database setup: tables, access rules, staff-only sign-up guard, live updates (never served by the site) |
+| `netlify.toml` | Security headers; blocks setup files from being served |
+| `robots.txt` | Keeps search engines out |
+
+Every file sits at the top level of the repo, so GitHub's "Upload files" works without folders.
 
 Member data is **never** in this repo. The one-time data load (`seed-members.sql`) is kept separately and blocked by `.gitignore`.
 
@@ -23,7 +26,7 @@ Member data is **never** in this repo. The one-time data load (`seed-members.sql
 
 ### 1. Supabase
 1. Project: `stzprlbkdibngnuvocsd` (https://stzprlbkdibngnuvocsd.supabase.co).
-2. **SQL Editor → New query:** paste all of `supabase/schema.sql` → **Run**.
+2. **SQL Editor → New query:** paste all of `schema.sql` → **Run**.
 3. **SQL Editor → New query:** paste all of `seed-members.sql` (sent separately, not in this repo) → **Run**. It should end with `members_loaded = 190`. The pastor login is pastor@rccgsanantonio.org.
 4. **Authentication → URL Configuration:**
    - Site URL: `https://scsatracker.org`
@@ -34,14 +37,14 @@ Member data is **never** in this repo. The one-time data load (`seed-members.sql
    - Create a Resend API key.
    - Supabase → **Authentication → Emails → SMTP Settings:** host `smtp.resend.com`, port `465`, user `resend`, password = the API key, sender `signin@scsatracker.org`, name `Salvation Center Tracker`.
 7. Optional: **Authentication → Emails → Templates → Magic Link:** set the subject to `Your Salvation Center sign-in link`.
-8. **Project Settings → API:** copy the **Project URL** and the **anon / publishable** key into `public/config.js`. Never use the `service_role` key.
+8. **Project Settings → API:** copy the **Project URL** and the **publishable** key into `config.js`. Never use the `service_role` key.
 
 ### 2. GitHub
-Repository: https://github.com/rccgscsa03/membership-journey-tracker (branch `main`). Easiest without git: open the repo → **Add file → Upload files** → drag in everything inside this folder (README.md, netlify.toml, .gitignore, and the `public` and `supabase` folders) → **Commit changes**.
+Repository: https://github.com/rccgscsa03/membership-journey-tracker (branch `main`). Easiest without git: open the repo → **Add file → Upload files** → select all eight files (index.html, app.js, config.js, supabase.js, netlify.toml, robots.txt, schema.sql, README.md) → **Commit changes**.
 
 ### 3. Netlify
 1. **Add new site → Import an existing project → GitHub** → pick the repo.
-2. Leave build command blank. The publish directory comes from `netlify.toml` (`public`).
+2. Leave build command blank. Leave the publish directory blank too.
 3. Deploy. Every push to `main` redeploys automatically.
 
 ### 4. scsatracker.org
