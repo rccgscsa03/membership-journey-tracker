@@ -1,0 +1,6 @@
+# Member data must never be committed
+*seed*.sql
+*.csv
+*.xlsx
+.DS_Store
+.env
