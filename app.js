@@ -23,6 +23,7 @@ const TRACKS = {
   A:{name:'First-time guest', days:42, limit:4, every:7},
   B:{name:'New convert', days:84, limit:6, every:7},
   C:{name:'New member', days:182, limit:0, every:30},
+  M:{name:'Member', days:90, limit:0, every:30},
   D1:{name:'Absent member', days:90, limit:0, every:7},
   D2:{name:'Care moment', days:30, limit:0, every:7},
 };
@@ -34,7 +35,8 @@ const KINDS = {reached:'Reached them', noanswer:'No answer', message:'Left a mes
 // Help text for each "i" icon. Wording follows the workbook's How to Use sheet and the Follow-Up Strategy.
 const TIPS = {
   stages:['Discipleship stages', "The big number is how many people are at that stage now: each person counts once, at the highest milestone they have a date for. The line at the bottom of each box counts everyone who has completed that milestone, including people who have since moved further. Click a stage to show only those people; click it again to show everyone.", ['Connect: completed the Membership Class','Commit: baptized',"Grow: joined a Life Center or Workers' Training",'Serve: placement assessment or serving in a ministry','Lead: leading or assisting a ministry or Life Center']],
-  tracks:['Follow-up tracks', 'Each person on follow-up is on one track with a set length. Click a track to show only those people.', ['A, first-time guest: 6 weeks, 4 attempts','B, new convert: 12 weeks, 6 attempts','C, new member: 6 months','D1, absent member: missed 3 Sundays in a row','D2, care moment: illness, loss, new baby, job loss']],
+  tracks:['Follow-up tracks', 'Each person on follow-up is on one track with a set length. Click a track to show only those people.', ['A, first-time guest: 6 weeks, 4 attempts','B, new convert: 12 weeks, 6 attempts','C, new member: 6 months',
+'M, member: ongoing check-in, monthly contact for 90 days','D1, absent member: missed 3 Sundays in a row','D2, care moment: illness, loss, new baby, job loss']],
   needs:['Needs attention', 'Shows people on an active track who need action now:', ['Next contact is today or overdue','Checkpoint has arrived','Attempts are used up','Waiting on the pastor\'s final call','Absent member with 90 days and no contact']],
   search:['Search and sort', 'Search finds names, follow-up owners, and notes. Sort by name, newest members, soonest next contact, or highest stage. Click any row to open that person.'],
   name:['Full name', 'Last, First is recommended so the list sorts the same way as the workbook.'],
@@ -80,6 +82,7 @@ const GUIDE = [
   ['Add a new person', 'Click Add person, enter the name and date joined, then fill in milestones and follow-up.'],
   ['Download the list', 'Download CSV saves a spreadsheet with the same columns as the Membership Journey workbook. Pastor\'s notes are never included.'],
   ['Roles', 'Pastor: everything, including pastor\'s notes, permanent delete, and the Staff list. Leader: add and edit members and follow-up. Viewer: read only.'],
+  ['Your password', 'Tap Password at the top of the page to set or change it. After that, sign in with your email and password; the emailed link still works too.'],
   ['Confidentiality', 'This tracker holds personal member data. Only people the pastor adds under Staff can sign in. Never forward your sign-in email to someone else.'],
 ];
 const $ = s => document.querySelector(s);
@@ -133,7 +136,7 @@ function renderLadder(){
   }).join('');
 }
 function renderStrip(){
-  const n = {A:0,B:0,C:0,D1:0,D2:0}; let attn = 0;
+  const n = Object.fromEntries(Object.keys(TRACKS).map(k => [k, 0])); let attn = 0;
   people.forEach(p => { if(activeFU(p)) n[p.track]++; if(attention(p).length) attn++; });
   $('#fstrip').innerHTML = `<button class="chip attn" type="button" data-attn aria-pressed="${ui.attn}">Needs attention <b>${attn}</b></button>` +
     `<button class="chip" type="button" data-low aria-pressed="${ui.low}">Low-touch list <b>${people.filter(p => p.ftStatus === 'lowtouch').length}</b></button>` +
@@ -192,6 +195,7 @@ function closeSheet(){ ui.open = null; $('#scrim').hidden = true; $('#sheet').hi
 function renderSheet(focus){
   const sh = $('#sheet');
   if(ui.open === '__staff'){ renderStaff(sh, focus); return; }
+  if(ui.open === '__password'){ renderPassword(sh, focus); return; }
   if(ui.open === '__guide'){
     sh.innerHTML = `<header><div class="t"><span class="label">Membership Journey</span><h2 id="sh-name">How to use this tracker</h2></div>
       <button class="x" type="button" data-close aria-label="Close">×</button></header>
@@ -254,7 +258,7 @@ function renderSheet(focus){
         <button class="btn small" type="button" data-decide="pastor">Pastor's final call</button>
         <button class="btn small" type="button" data-decide="lowtouch">Low-touch list</button></div></div>` : ''}
       ${(p.log||[]).length ? `<div class="sec"><span class="label">Contact log</span><ul class="log">${p.log.slice().reverse().slice(0,25).map(l => `<li><span class="d">${fmtShort(l.d)}</span><span>${esc(KINDS[l.kind]||l.kind)}</span></li>`).join('')}</ul></div>` : ''}
-      ` : `<p class="hint">Choose a track to start following up. Guests go on A, new converts on B, new members on C, absent members on D1, and members in a care moment on D2.</p>`}
+      ` : `<p class="hint">Choose a track to start following up. Guests go on A, new converts on B, new members on C, current members you are checking in with on M, absent members on D1, and members in a care moment on D2.</p>`}
     </div>
     <div class="sec">
       <div class="field"><div class="lbl"><label for="f-notes">Notes</label>${info('notes')}</div><textarea id="f-notes" placeholder="Life Center name, special circumstances" ${dis}>${esc(p.notes||'')}</textarea></div>
@@ -319,7 +323,7 @@ function savePastorNote(id, text){
   });
 }
 function fieldChange(el){
-  if(el.closest('[data-staff-row]') || el.closest('#staffForm')) return;
+  if(el.closest('[data-staff-row]') || el.closest('#staffForm') || el.closest('#pwForm')) return;
   const id = ui.open; if(!id || id.startsWith('__')) return; const p = person(id); if(!p) return;
   if(el.id === 'f-pnote'){ if(isPastor) savePastorNote(id, el.value.trim()); return; }
   const v = el.value.trim();
@@ -456,7 +460,8 @@ document.addEventListener('change', e => {
   if(e.target.dataset.staffRole) return setStaffRole(e.target.dataset.staffRole, e.target.value);
   if(e.target.closest('#sheet')) fieldChange(e.target);
 });
-document.addEventListener('submit', e => { if(e.target.id === 'staffForm'){ e.preventDefault(); addStaff(); } });
+document.addEventListener('submit', e => { if(e.target.id === 'staffForm'){ e.preventDefault(); addStaff(); }
+  if(e.target.id === 'pwForm'){ e.preventDefault(); savePassword(); } });
 $('#q').addEventListener('input', e => { ui.q = e.target.value; renderRows(); });
 $('#sort').addEventListener('change', e => { ui.sort = e.target.value; try{localStorage.setItem('mj-ui', JSON.stringify({sort:ui.sort}))}catch(err){} renderRows(); });
 
@@ -509,26 +514,63 @@ function subscribe(){
     })
     .subscribe();
 }
-async function sendLink(e){
+async function signInPassword(e){
   e.preventDefault();
+  const email = $('#login-email').value.trim().toLowerCase(), password = $('#login-password').value;
+  if(!/^\S+@\S+\.\S+$/.test(email)){ loginMessage('Enter the email address the pastor added for you.'); $('#login-email').focus(); return; }
+  if(!password){ loginMessage('Enter your password, or use the emailed sign-in link below.'); $('#login-password').focus(); return; }
+  const btn = $('#login-btn'); btn.disabled = true; btn.textContent = 'Signing in…';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  btn.disabled = false; btn.textContent = 'Sign in';
+  if(error){
+    loginMessage(/invalid|credentials/i.test(error.message||'') ? 'That email and password don\'t match. Check both and try again, or use the emailed sign-in link.' : (/confirm/i.test(error.message||'') ? 'This account has not been confirmed yet. Ask the pastor to confirm it in Supabase.' : 'Sign-in failed. Try again in a moment.'));
+    return;
+  }
+  loginMessage('');
+  if(data && data.session && !role) startApp(data.session);
+}
+async function sendLink(){
   const email = $('#login-email').value.trim().toLowerCase();
-  if(!/^\S+@\S+\.\S+$/.test(email)){ loginMessage('Enter the email address the pastor added for you.'); return; }
-  const btn = $('#login-btn'); btn.disabled = true; btn.textContent = 'Sending…';
+  if(!/^\S+@\S+\.\S+$/.test(email)){ loginMessage('Enter the email address the pastor added for you, then tap the link option again.'); $('#login-email').focus(); return; }
+  const btn = $('#link-btn'); btn.disabled = true;
   const { error } = await sb.auth.signInWithOtp({ email, options:{ emailRedirectTo: location.origin + location.pathname } });
-  btn.disabled = false; btn.textContent = 'Email me a sign-in link';
+  btn.disabled = false;
   if(error){
     const notStaff = /staff list|Database error/i.test(error.message || '');
-    loginMessage(notStaff ? `<b>${esc(email)}</b> is not on the staff list. Ask the pastor to add you.` : (/rate|seconds/i.test(error.message||'') ? 'Too many sign-in emails were sent. Wait a minute, then try again.' : 'The sign-in email could not be sent. Try again in a moment.'));
+    loginMessage(notStaff ? `<b>${esc(email)}</b> is not on the staff list. Ask the pastor to add you.` : (/rate|seconds/i.test(error.message||'') ? 'Too many sign-in emails were sent. Wait a minute, then try again.' : 'The sign-in email could not be sent. Try again in a moment, or sign in with your password.'));
     return;
   }
   loginMessage(`Check <b>${esc(email)}</b> for a sign-in link. It expires in one hour. You can close this tab.`);
+}
+function renderPassword(sh, focus){
+  sh.innerHTML = `<header><div class="t"><span class="label">${esc(myEmail)}</span><h2 id="sh-name">Set your password</h2></div>
+    <button class="x" type="button" data-close aria-label="Close">×</button></header>
+    <div class="body">
+      <p class="hint">Set a password so you can sign in without waiting for an email. Use at least 10 characters.</p>
+      <form class="sec" id="pwForm" autocomplete="off">
+        <div class="field"><label for="pw-new">New password</label><input id="pw-new" type="password" autocomplete="new-password" minlength="10" required></div>
+        <div class="field"><label for="pw-again">Type it again</label><input id="pw-again" type="password" autocomplete="new-password" minlength="10" required></div>
+        <div class="row"><button class="btn primary" type="submit">Save password</button></div>
+      </form>
+    </div>`;
+  if(focus) sh.querySelector('#pw-new').focus({preventScroll:true});
+}
+async function savePassword(){
+  const a1 = $('#pw-new').value, a2 = $('#pw-again').value;
+  if(a1.length < 10){ toast('Use at least 10 characters.'); return; }
+  if(a1 !== a2){ toast('The two passwords don\'t match.'); return; }
+  const { error } = await sb.auth.updateUser({ password: a1 });
+  if(error){ toast(/weak|short|pwned|leaked/i.test(error.message||'') ? 'Choose a stronger password.' : 'The password was not saved. Try again.'); return; }
+  closeSheet(); toast('Password saved. You can sign in with it from now on.');
 }
 render();
 (async () => {
   const cfg = window.SCSA_CONFIG || {};
   if(!window.supabase || !cfg.supabaseUrl || !cfg.supabaseAnonKey){ showScreen('login'); loginMessage('This site is not connected to its database yet. Add the Supabase URL and key to <code>config.js</code>.'); $('#login-form').hidden = true; return; }
   sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, { auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } });
-  $('#login-form').addEventListener('submit', sendLink);
+  $('#login-form').addEventListener('submit', signInPassword);
+  $('#link-btn').addEventListener('click', sendLink);
+  $('#pwBtn').addEventListener('click', () => openSheet('__password'));
   $('#signOutBtn').addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });
   const { data:{ session } } = await sb.auth.getSession();
   if(session) startApp(session); else showScreen('login');

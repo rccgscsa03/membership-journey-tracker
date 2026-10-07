@@ -3,7 +3,7 @@
 Staff-only tracker for RCCG Salvation Center San Antonio: each person's discipleship stage (Connect → Lead) and their follow-up, at **https://scsatracker.org**.
 
 - **Site:** static HTML/JS at the top level of the repo, hosted on Netlify. No build step.
-- **Data and sign-in:** Supabase (Postgres + email-link login).
+- **Data and sign-in:** Supabase (Postgres; sign in with email + password, or an emailed link).
 - **Access:** only emails on the Staff list can sign in. Pastor = everything, including pastor's notes, permanent delete and the Staff list. Leader = add and edit members and follow-up. Viewer = read only. Enforced by database row-level security, not just the page.
 
 ## Files
@@ -58,3 +58,10 @@ HTTPS is issued automatically once DNS resolves (minutes to a few hours).
 - **Add staff:** sign in as pastor → **Staff** → enter email, name and role. They can sign in right away.
 - **Remove staff:** **Staff → Remove**. Their next sign-in is refused.
 - **Backups:** Supabase keeps daily backups on paid plans. **Download CSV** gives a spreadsheet copy at any time.
+
+## Daily email (weekdays, 6 a.m. Central)
+`daily-digest-index.ts` is a Supabase Edge Function. Each weekday it emails every staff member whose follow-ups are due (matched by **Owner = their Staff name**, titles like "Pastor" ignored). Pastors also get the people waiting on a final call and a church-wide summary. Sent from `notifications@scsatracker.org` through Resend. Pastor's notes are never included.
+
+1. **Edge Functions → Deploy a new function → Via Editor.** Name it `daily-digest`, paste `daily-digest-index.ts`, deploy. In the function's **Details**, turn **Verify JWT** off (the function checks its own secret).
+2. **Edge Functions → Secrets:** `RESEND_API_KEY`, `CRON_SECRET`, `SITE_URL`, and optionally `DIGEST_COPY_TO` (a bcc for the pastor's copy).
+3. **SQL Editor:** run `digest-schedule.sql` (kept private; it holds the secret).
