@@ -188,6 +188,7 @@ tbody tr:last-child td{border-bottom:0}
 .staff-list .who span{font-size:12px;overflow-wrap:anywhere}
 .staff-list select{padding:6px 8px;border:1px solid var(--line-strong);border-radius:6px;background:var(--bg)}
 .you{font-size:12px}
+.linkbtn.center{justify-self:center;margin-top:4px}
 </style>
 </head>
 <body>
@@ -196,11 +197,14 @@ tbody tr:last-child td{border-bottom:0}
     <div class="eyebrow">RCCG Salvation Center San Antonio</div>
     <h1>Membership Journey</h1>
     <div class="goldrule"></div>
-    <p class="hint">Staff only. Enter your email and we'll send you a link to sign in. No password needed.</p>
+    <p class="hint">Staff only. Sign in with your email and password, or have a sign-in link emailed to you.</p>
     <form id="login-form" novalidate>
       <label class="label" for="login-email">Email</label>
-      <input id="login-email" type="email" autocomplete="email" placeholder="name@example.org" required>
-      <button class="btn primary" id="login-btn" type="submit">Email me a sign-in link</button>
+      <input id="login-email" type="email" autocomplete="username" placeholder="name@example.org" required>
+      <label class="label" for="login-password">Password</label>
+      <input id="login-password" type="password" autocomplete="current-password" placeholder="Your password">
+      <button class="btn primary" id="login-btn" type="submit">Sign in</button>
+      <button class="linkbtn center" id="link-btn" type="button">No password? Email me a sign-in link</button>
     </form>
     <div class="login-msg" id="login-msg" hidden role="status"></div>
   </div>
@@ -211,6 +215,7 @@ tbody tr:last-child td{border-bottom:0}
     <div class="mast-top"><div class="eyebrow">RCCG Salvation Center San Antonio</div>
       <div class="acct"><span id="acct-email"></span><span class="rolepill" id="acct-role"></span>
         <button class="btn small" id="staffBtn" type="button" hidden>Staff</button>
+        <button class="btn small" id="pwBtn" type="button">Password</button>
         <button class="btn small" id="signOutBtn" type="button">Sign out</button></div></div>
     <h1>Membership Journey</h1>
     <p class="lede">Every person, their stage from Connect to Lead, and who is following up with them. Enter milestone dates, not checkmarks; the stage updates itself.</p>
