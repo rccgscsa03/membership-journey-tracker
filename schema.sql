@@ -43,10 +43,10 @@ create table if not exists public.members (
   name             text not null,
   joined           date,
   milestones       jsonb not null default '{}'::jsonb,  -- membership, baptism, lifeCenter, workers, placement, serving, lead → 'YYYY-MM-DD'
-  track            text not null default '' check (track in ('','A','B','C','D1','D2')),
+  track            text not null default '' check (track in ('','A','B','C','M','D1','D2')),
   owner            text not null default '',
   phone            text not null default '',
-  ft_status        text not null default 'active' check (ft_status in ('active','pastor','handoff','released','lowtouch','closed')),
+  ft_status        text not null default 'active' check (ft_status in ('active','pastor','handoff','released','moved','lowtouch','closed')),
   ft_start         date,
   ft_extend        integer not null default 0,
   next_contact     date,
@@ -124,3 +124,13 @@ do $$ begin
     alter publication supabase_realtime add table public.pastor_notes;
   end if;
 end $$;
+
+-- ─────────────────────────────────────────────────────────────
+-- 6. Upgrade (2026-10-06): allow the M (Member) follow-up track on databases created before it existed
+-- ─────────────────────────────────────────────────────────────
+alter table public.members drop constraint if exists members_track_check;
+alter table public.members add constraint members_track_check check (track in ('','A','B','C','M','D1','D2'));
+
+-- 7. Upgrade: add the "Moved out of town" status (safe to run more than once)
+alter table public.members drop constraint if exists members_ft_status_check;
+alter table public.members add constraint members_ft_status_check check (ft_status in ('active','pastor','handoff','released','moved','lowtouch','closed'));

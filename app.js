@@ -28,7 +28,7 @@ const TRACKS = {
   D2:{name:'Care moment', days:30, limit:0, every:7},
 };
 const STATUSES = {
-  active:'Active', pastor:"Pastor's final call", handoff:'Handed off', released:'Released with a blessing', lowtouch:'Low-touch list', closed:'Closed — connected or restored'
+  active:'Active', pastor:"Pastor's final call", handoff:'Handed off', released:'Released with a blessing', moved:'Moved out of town', lowtouch:'Low-touch list', closed:'Closed — connected or restored'
 };
 const KINDS = {reached:'Reached them', noanswer:'No answer', message:'Left a message', visit:'Visited in person', card:'Sent a card'};
 
@@ -45,13 +45,13 @@ const TIPS = {
   nextstep:['Next step', 'The milestone this person is ready for next, based on their current stage.'],
   track:['Track', 'Choosing a track starts follow-up today and schedules the first contact. Switching tracks restarts the clock and resets attempts. Choose "No active follow-up" to stop.'],
   owner:['Owner', 'The one person who answers for this name. A team can help, but one person is accountable.'],
-  status:['Status', 'Where this person stands on their track:', ['Active: follow-up is underway','Pastor\'s final call: attempts are used up; the pastor makes one last contact','Handed off: moved on to their next step','Released with a blessing: a clear no, moved away, or joined another church','Low-touch list: quarterly invitations only','Closed: connected or restored']],
+  status:['Status', 'Where this person stands on their track:', ['Active: follow-up is underway','Pastor\'s final call: attempts are used up; the pastor makes one last contact','Handed off: moved on to their next step','Released with a blessing: a clear no or joined another church','Moved out of town: relocated; follow-up stops and they stay on file','Low-touch list: quarterly invitations only','Closed: connected or restored']],
   start:['Track started', 'Set automatically when you choose a track. The checkpoint is counted from this date.'],
   next:['Next contact', 'Set automatically when you log a contact. Change it if you agreed on a different day.'],
   checkpoint:['Checkpoint', 'The date the track\'s time is up. When it arrives, decide what comes next.'],
   attempts:['Attempts', 'No answer or a left message adds one. Reaching them or visiting resets the count to zero. Sending a card does not count.'],
   log:['Log a contact', 'Tap what happened today. It records the date, updates attempts, and sets the next contact.'],
-  decision:['Checkpoint decision', 'Pick one when the checkpoint arrives:', ['Keep going: extends the track by its full length','Hand off: they move on to their next step','Release: a clear no, moved, or another church','Pastor\'s final call: attempts are used up','Low-touch list: quarterly invitations only']],
+  decision:['Checkpoint decision', 'Pick one when the checkpoint arrives:', ['Keep going: extends the track by its full length','Hand off: they move on to their next step','Release: a clear no or another church','Pastor\'s final call: attempts are used up','Low-touch list: quarterly invitations only']],
   notes:['Notes', 'Life Center name, track details, special circumstances. Everyone who can open this tracker can read these notes.'],
   lowtouch:['Low-touch list', 'Takes this person off active follow-up but keeps them on file with all their milestones, notes, and contact history. They receive quarterly invitations only. Use the Low-touch list filter at the top to see everyone on it, and Return to the active list to bring someone back.'],
   pastor:["Pastor's notes", 'Only the pastor can see or edit these. Other users cannot see them, search them, or download them.'],
