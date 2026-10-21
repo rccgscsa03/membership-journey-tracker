@@ -566,6 +566,9 @@ async function savePassword(){
 render();
 (async () => {
   const cfg = window.SCSA_CONFIG || {};
+  // Apply the editable public names from config.js (falls back to the text already in index.html).
+  document.querySelectorAll('[data-site]').forEach(el => { const v = cfg[el.dataset.site]; if(v) el.textContent = v; });
+  if(cfg.pageTitle) document.title = cfg.pageTitle;
   if(!window.supabase || !cfg.supabaseUrl || !cfg.supabaseAnonKey){ showScreen('login'); loginMessage('This site is not connected to its database yet. Add the Supabase URL and key to <code>config.js</code>.'); $('#login-form').hidden = true; return; }
   sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, { auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } });
   $('#login-form').addEventListener('submit', signInPassword);
