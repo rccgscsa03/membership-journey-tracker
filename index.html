@@ -123,6 +123,11 @@ tbody tr:last-child td{border-bottom:0}
 .field label{font-size:12px;font-weight:600;color:var(--muted)}
 .field input,.field select,.field textarea{width:100%;padding:8px 10px;border:1px solid var(--line-strong);border-radius:7px;background:var(--bg)}
 .field textarea{min-height:84px;resize:vertical}
+.chks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px}
+.chk{display:flex;gap:8px;align-items:flex-start;font-size:14px;cursor:pointer}
+.chk input{margin-top:3px}
+fieldset{border:0;padding:0;margin:0;min-width:0}
+@media (max-width:480px){.chks{grid-template-columns:1fr}}
 .miles{display:grid;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .mile{display:grid;grid-template-columns:62px 1fr 150px;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line)}
 .mile:last-child{border-bottom:0}
@@ -243,7 +248,7 @@ tbody tr:last-child td{border-bottom:0}
       </select>
       <button class="info" type="button" data-tip="search" aria-label="About search and sort" aria-expanded="false">i</button>
       <button class="btn editonly" id="addBtn" type="button">Add person</button>
-      <button class="btn" id="csvBtn" type="button">Download CSV</button>
+      <button class="btn" id="csvBtn" type="button" hidden>Download data</button>
       <button class="btn guide" id="guideBtn" type="button"><span class="info as-icon" aria-hidden="true">?</span>How to use</button>
     </div>
     <div class="count" id="shown"></div>
