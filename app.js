@@ -80,7 +80,7 @@ const GUIDE = [
   ['Make a checkpoint decision', 'When a checkpoint arrives, the decision buttons appear in the record. Keep going, hand off, release, pastor\'s final call, or low-touch.'],
   ['Someone moved or left', 'Open their record, add a note about where they went, and click Move to low-touch list. They stay on file with their history. Use Delete record permanently only for duplicates or mistakes.'],
   ['Add a new person', 'Click Add person, enter the name and date joined, then fill in milestones and follow-up.'],
-  ['Download the list', 'Download CSV saves a spreadsheet with the same columns as the Membership Journey workbook. Pastor\'s notes are never included.'],
+  ['Download member data', 'Only the pastor sees the Download data button. Choose who to include (stage, follow-up, join dates, or just what is on screen) and which columns to save, then download a CSV spreadsheet. Pastor\'s notes are never included.'],
   ['Roles', 'Pastor: everything, including pastor\'s notes, permanent delete, and the Staff list. Leader: add and edit members and follow-up. Viewer: read only.'],
   ['Your password', 'Tap Password at the top of the page to set or change it. After that, sign in with your email and password; the emailed link still works too.'],
   ['Confidentiality', 'This tracker holds personal member data. Only people the pastor adds under Staff can sign in. Never forward your sign-in email to someone else.'],
@@ -196,6 +196,7 @@ function renderSheet(focus){
   const sh = $('#sheet');
   if(ui.open === '__staff'){ renderStaff(sh, focus); return; }
   if(ui.open === '__password'){ renderPassword(sh, focus); return; }
+  if(ui.open === '__export'){ if(isPastor) renderExport(sh, focus); else closeSheet(); return; }
   if(ui.open === '__guide'){
     sh.innerHTML = `<header><div class="t"><span class="label">Membership Journey</span><h2 id="sh-name">How to use this tracker</h2></div>
       <button class="x" type="button" data-close aria-label="Close">×</button></header>
@@ -408,20 +409,86 @@ async function removeStaff(email){
   if(error) handleWriteError(error); else { await loadStaff(); renderSheet(); toast('Removed from staff'); }
 }
 
-/* ---------- CSV ---------- */
-function csv(){
-  const head = ['Date Joined','Full Name',...MILES.map(m=>m.label),'Stage Reached','Track','Owner','Phone','Status','Track Started','Next Contact','Attempts','Last Contact','Notes'];
-  const q = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; };
+/* ---------- Export (pastor only) ---------- */
+const EXP_COLS = [
+  ['joined','Date joined'],['milestones','Milestone dates (all seven)'],['stage','Stage reached'],
+  ['followup','Follow-up details (track, owner, status, dates, attempts)'],['phone','Phone number'],['notes','Notes'],
+];
+const fuKey = p => (p.track || p.ftStatus === 'lowtouch') ? (p.ftStatus || 'active') : 'none';
+const expDefault = () => ({ scope:'all', stages:[0,1,2,3,4,5], statuses:[...Object.keys(STATUSES),'none'], tracks:[...Object.keys(TRACKS),'none'], attn:false, from:'', to:'', cols:Object.fromEntries(EXP_COLS.map(([k])=>[k,true])) });
+ui.exp = expDefault();
+function expPeople(){
+  const x = ui.exp;
+  const base = x.scope === 'screen' ? filtered() : people.slice().sort((a,b)=>a.name.localeCompare(b.name));
+  return base.filter(p => x.stages.includes(stageOf(p)) && x.statuses.includes(fuKey(p)) && x.tracks.includes(p.track || 'none')
+    && (!x.attn || attention(p).length) && (!x.from || (p.joined && p.joined >= x.from)) && (!x.to || (p.joined && p.joined <= x.to)));
+}
+function csv(list, cols){
+  // Cells starting with = + - @ can run as formulas when opened in Excel; a leading apostrophe keeps them as text.
+  const q = v => { let s = String(v ?? ''); if(/^[=@\t\r]/.test(s) || /^[+-][^\d\s().-]/.test(s)) s = "'" + s; return /[",\n\r]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; };
+  const head = ['Full Name'], row = [];
+  if(cols.joined) head.unshift('Date Joined');
+  if(cols.milestones) head.push(...MILES.map(m=>m.label));
+  if(cols.stage) head.push('Stage Reached');
+  if(cols.followup) head.push('Track','Owner','Status','Track Started','Next Contact','Attempts','Last Contact');
+  if(cols.phone) head.push('Phone');
+  if(cols.notes) head.push('Notes');
   const lines = [head.map(q).join(',')];
-  people.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(p => { const s = stageOf(p);
-    lines.push([p.joined, p.name, ...MILES.map(m => (p.m||{})[m.k]||''), s ? `Stage ${s} — ${STAGES[s].name}` : 'Not Started', p.track||'', p.owner||'', p.phone||'', (p.track || p.ftStatus === 'lowtouch') ? STATUSES[p.ftStatus||'active'] : '', p.ftStart||'', p.nextContact||'', p.attempts||0, p.lastContact||'', p.notes||''].map(q).join(','));
+  list.forEach(p => { const s = stageOf(p), r = [];
+    if(cols.joined) r.push(p.joined);
+    r.push(p.name);
+    if(cols.milestones) r.push(...MILES.map(m => (p.m||{})[m.k]||''));
+    if(cols.stage) r.push(s ? `Stage ${s} — ${STAGES[s].name}` : 'Not Started');
+    if(cols.followup) r.push(p.track||'', p.owner||'', fuKey(p) === 'none' ? '' : STATUSES[fuKey(p)], p.ftStart||'', p.nextContact||'', p.attempts||0, p.lastContact||'');
+    if(cols.phone) r.push(p.phone||'');
+    if(cols.notes) r.push(p.notes||'');
+    lines.push(r.map(q).join(','));
   });
   return lines.join('\n');
 }
+function renderExport(sh, focus){
+  const x = ui.exp, n = expPeople().length;
+  const box = (grp, val, label, on) => `<label class="chk"><input type="checkbox" data-exp="${grp}" value="${esc(val)}" ${on?'checked':''}> <span>${esc(label)}</span></label>`;
+  sh.innerHTML = `<header><div class="t"><span class="label">Pastor only</span><h2 id="sh-name">Download member data</h2></div>
+    <button class="x" type="button" data-close aria-label="Close">×</button></header>
+    <div class="body"><form id="expForm" class="sec" autocomplete="off" onsubmit="return false">
+      <p class="hint">Choose who to include and which columns to save. Pastor's notes are never included. This file holds personal data, so keep it private and delete it when you're done.</p>
+      <fieldset class="sec"><span class="label">Who to include</span>
+        <label class="chk"><input type="radio" name="exp-scope" data-exp="scope" value="all" ${x.scope==='all'?'checked':''}> <span>Everyone on the list</span></label>
+        <label class="chk"><input type="radio" name="exp-scope" data-exp="scope" value="screen" ${x.scope==='screen'?'checked':''}> <span>Only what is showing on the main page now (current search and filters)</span></label>
+        <span class="label">Stage</span><div class="chks">${STAGES.map(s => box('stages', s.n, s.n ? `${s.n} · ${s.name}` : 'Not Started', x.stages.includes(s.n))).join('')}</div>
+        <span class="label">Follow-up status</span><div class="chks">${Object.entries(STATUSES).map(([k,v]) => box('statuses', k, v, x.statuses.includes(k))).join('')}${box('statuses','none','Not on follow-up', x.statuses.includes('none'))}</div>
+        <span class="label">Follow-up track</span><div class="chks">${Object.entries(TRACKS).map(([k,t]) => box('tracks', k, `${k} · ${t.name}`, x.tracks.includes(k))).join('')}${box('tracks','none','No track', x.tracks.includes('none'))}</div>
+        <div class="chks">${box('attn','1','Only people who need attention now', x.attn)}</div>
+        <div class="grid2"><div class="field"><label for="exp-from">Joined on or after</label><input id="exp-from" type="date" data-exp="from" value="${esc(x.from)}"></div>
+        <div class="field"><label for="exp-to">Joined on or before</label><input id="exp-to" type="date" data-exp="to" value="${esc(x.to)}"></div></div>
+      </fieldset>
+      <fieldset class="sec"><span class="label">Columns to include</span>
+        <label class="chk"><input type="checkbox" checked disabled> <span>Full name (always)</span></label>
+        <div class="chks">${EXP_COLS.map(([k,v]) => box('cols', k, v, x.cols[k])).join('')}</div>
+      </fieldset>
+      <div class="row"><button class="btn primary" type="button" data-export-go id="expGo">Download CSV</button>
+        <button class="linkbtn" type="button" data-export-reset>Reset choices</button><span class="count" id="expCount" role="status">${n} of ${people.length} people will be included</span></div>
+    </form></div>`;
+  if(focus) sh.querySelector('input').focus({preventScroll:true});
+}
+function expChange(el){
+  const x = ui.exp, g = el.dataset.exp; if(!g) return;
+  if(g === 'scope') x.scope = el.value;
+  else if(g === 'attn') x.attn = el.checked;
+  else if(g === 'from' || g === 'to') x[g] = el.value;
+  else if(g === 'cols') x.cols[el.value] = el.checked;
+  else { const v = g === 'stages' ? Number(el.value) : el.value; x[g] = el.checked ? [...new Set([...x[g], v])] : x[g].filter(i => i !== v); }
+  $('#expCount').textContent = `${expPeople().length} of ${people.length} people will be included`;
+}
 function downloadCsv(){
-  const blob = new Blob(['﻿' + csv()], {type:'text/csv;charset=utf-8'});
+  if(!isPastor){ toast('Only the pastor can download member data.'); return; }
+  const list = expPeople();
+  if(!list.length){ toast('No one matches those choices.'); return; }
+  const blob = new Blob(['﻿' + csv(list, ui.exp.cols)], {type:'text/csv;charset=utf-8'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `membership-journey-${today()}.csv`;
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  toast(`Downloaded ${list.length} ${list.length === 1 ? 'person' : 'people'}`);
 }
 
 /* ---------- events ---------- */
@@ -440,7 +507,9 @@ document.addEventListener('click', e => {
   if(el.matches('[data-clear]')){ Object.assign(ui,{stage:null,track:null,attn:false,low:false,q:''}); $('#q').value=''; return render(); }
   if(el.matches('tr[data-id]')) return openSheet(el.dataset.id);
   if(el.matches('#addBtn')) return openSheet('__new');
-  if(el.matches('#csvBtn')){ downloadCsv(); return; }
+  if(el.matches('#csvBtn')){ if(isPastor) openSheet('__export'); return; }
+  if(el.matches('[data-export-go]')) return downloadCsv();
+  if(el.matches('[data-export-reset]')){ ui.exp = expDefault(); return renderSheet(); }
   if(el.matches('#staffBtn')) return openSheet('__staff');
   if(el.matches('[data-staff-remove]')) return removeStaff(el.dataset.staffRemove);
   if(el.matches('[data-close],.scrim')) return closeSheet();
@@ -457,6 +526,7 @@ document.addEventListener('keydown', e => {
   if(e.key === 'Enter' && e.target.matches && e.target.matches('tr[data-id]')) openSheet(e.target.dataset.id);
 });
 document.addEventListener('change', e => {
+  if(e.target.closest('#expForm')) return expChange(e.target);
   if(e.target.dataset.staffRole) return setStaffRole(e.target.dataset.staffRole, e.target.value);
   if(e.target.closest('#sheet')) fieldChange(e.target);
 });
@@ -480,7 +550,7 @@ async function startApp(session){
   role = r; isPastor = role === 'pastor'; canWrite = role === 'pastor' || role === 'leader';
   document.body.classList.toggle('ro', !canWrite);
   $('#acct-email').textContent = myEmail; $('#acct-role').textContent = role[0].toUpperCase() + role.slice(1);
-  $('#staffBtn').hidden = !isPastor;
+  $('#staffBtn').hidden = !isPastor; $('#csvBtn').hidden = !isPastor;
   showScreen('app'); render();
   await loadPeople();
   if(isPastor){ await Promise.all([loadNotes(), loadStaff()]); render(); }
